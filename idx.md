@@ -24,6 +24,22 @@ style: |
 
 # A (more) declarative approach <br> to accessing collections in Elixir
 
+<style scoped>
+img {
+  position: absolute;
+  right: 50px;
+  border: none;
+}
+h6 {
+  position: absolute;
+  bottom: 70px;
+}
+</style>
+
+ ###### Mateusz Front
+ 
+ ![width:400px](logos.png)
+
 ---
 
 ```elixir
@@ -114,7 +130,7 @@ Idx.get(users, 1)
 
 ---
 
-## This works
+## Idx
 
 ```elixir
 bob = Enum.find(users, fn user -> user.nick == "Bob" end)
@@ -124,22 +140,12 @@ bob = Enum.find(users, fn user -> user.nick == "Bob" end)
 
 ---
 
-## ...and can be shorter
-
-```elixir
-users = Idx.new(users_list, & &1.id)
-
-bob = Enum.find(users, & &1.nick == "Bob")
-```
-
----
-
 ## Speeding it up
 
 ```elixir
-users = Idx.new(users_list, & &1.id)
+users = Idx.new(users_list, fn user -> user.id end)
 
-users = Idx.create_index(users, :nick, & &1.nick)
+users = Idx.create_index(users, :nick, fn user -> user.nick end)
 
 bob = Idx.get(users, 1)
 
@@ -152,7 +158,7 @@ bob = Idx.get(users, Idx.key(:nick, "Bob"))
 
 ---
 
-## Which one is faster?
+## Which is better?
 
 ```elixir
 bob = Enum.find(users, fn user -> user.nick == "Bob" end)
@@ -161,14 +167,14 @@ bob = Enum.find(users, fn user -> user.nick == "Bob" end)
 vs
 
 ```elixir
-users = Idx.create_index(users, :nick, & &1.nick)
+users = Idx.create_index(users, :nick, fn user -> user.nick end)
 
 bob = Idx.get(users, Idx.key(:nick, "Bob"))
 ```
 
 ---
 
-## Which one is faster?
+## Which is better?
 
 ```elixir
 bob = Enum.find(users, fn user -> user.nick == "Bob" end)
@@ -177,13 +183,111 @@ bob = Enum.find(users, fn user -> user.nick == "Bob" end)
 vs
 
 ```elixir
-users = Idx.create_index(users, :nick, & &1.nick, lazy?: true)
+users = Idx.create_index(users, :nick, fn user -> user.nick end, lazy?: true)
 
 bob = Idx.get(users, Idx.key(:nick, "Bob"))
 ```
 
 ---
 
-# Decouple what from how
+# Grouping our users
 
 ---
+
+## Grouping our users
+
+```elixir
+users_list = [
+  %User{id: 1, nick: "Bob", age: 20, team: :a},
+  %User{id: 2, nick: "Eve", age: 30}, team: :b}
+  ...
+]
+
+teams_list = {
+  %Team{id: :a, metadata: "...", users: [1, 5, 30, ...]},
+  %Team{id: :b, metadata: "...", users: [2, 8, 14, ...]},
+}
+```
+
+---
+
+## Grouping our users
+
+```elixir
+users_list = [
+  %User{id: 1, nick: "Bob", age: 20, team: :a},
+  %User{id: 2, nick: "Eve", age: 30, team: :b}
+  ...
+]
+
+teams_list = {
+  %Team{id: :a, metadata: "..."},
+  %Team{id: :b, metadata: "..."},
+}
+```
+
+---
+
+## Multi index
+
+```elixir
+users = Idx.new(users_list, fn user -> user.id end)
+
+users = Idx.create_index(users, :team, fn user -> user.team end, multi?: true)
+
+users_from_team_a = Idx.get(users, Idx.key(:team, :a))
+
+[%User{id: 1, nick: "Bob", age: 20, team: :a}, %User{id: 5, nick: ...}, ...]
+```
+
+---
+
+## Removing a team
+
+```elixir
+teams = Idx.delete(teams, :a)
+
+users = Idx.delete(users, Idx.key(:team, :a))
+```
+
+---
+
+## Removing a team
+
+```elixir
+teams = Idx.delete(teams, :a)
+
+# users = Idx.delete(users, Idx.key(:team, :a))
+```
+
+---
+
+```elixir
+users = Idx.create_index(users, :team, fn user -> user.team end, multi?: true)
+
+users_from_team_a = Idx.get(users, Idx.key(:team, :a))
+```
+
+---
+
+```elixir
+users = Idx.create_index(users, :team, fn user -> user.team end, multi?: true)
+
+users_from_team_a = Idx.get(users, Idx.key(:team, :a))
+```
+
+<br>
+
+```sql
+CREATE INDEX team ON Users (Team);
+
+SELECT * FROM Users WHERE Team="a"
+```
+
+---
+
+# Questions?
+
+[github.com/mat-hek/idx](https://github.com/mat-hek/idx)
+[hexdocs.pm/idx](https://hexdocs.pm/idx)
+
